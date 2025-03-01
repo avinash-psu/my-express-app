@@ -138,16 +138,16 @@ app.delete('/api/tasks/:id', verifyToken, async (req, res) => {
   }
 });
 
-const server = () => {
+const startServer = () => {
     const port = process.env.PORT || 8000;
     return app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
-};
+  };
   
-if (require.main === module) {
-    server();
-}
+  if (require.main === module) {
+    startServer();
+  }
   
-// Export the app
-module.exports = { app, server };
+  // Export the app
+  module.exports = { app, startServer, sequelize };

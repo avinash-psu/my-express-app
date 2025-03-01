@@ -1,6 +1,6 @@
 const request = require('supertest');
-const express = require('express');
-const { app, server } = require('./server');
+const { app, startServer } = require('./server');
+const { sequelize } = require('./server'); // Export sequelize from server.js
 
 // Mock the Google OAuth client
 jest.mock('google-auth-library', () => ({
@@ -11,25 +11,22 @@ jest.mock('google-auth-library', () => ({
   }))
 }));
 
+let server;
+
+beforeAll(async () => {
+  await sequelize.sync({ force: true }); // Reset database before tests
+  server = await startServer();
+});
+
+afterAll(async () => {
+  await server.close();
+  await sequelize.close();
+});
+
 describe('Server API', () => {
-  let server;
-  let agent;
-
-  beforeAll((done) => {
-    server = app.listen(4000, (err) => {
-      if (err) return done(err);
-      agent = request.agent(server);
-      done();
-    });
-  });
-
-  afterAll((done) => {
-    server.close(done);
-  });
-
   describe('POST /api/user', () => {
     it('should create a new user', async () => {
-      const res = await agent
+      const res = await request(app)
         .post('/api/user')
         .set('Authorization', 'valid-token')
         .send({ email: 'test@example.com', name: 'Test User' });
@@ -43,7 +40,7 @@ describe('Server API', () => {
 
   describe('GET /api/tasks', () => {
     it('should return an array of tasks', async () => {
-      const res = await agent
+      const res = await request(app)
         .get('/api/tasks')
         .set('Authorization', 'valid-token');
 
@@ -54,7 +51,7 @@ describe('Server API', () => {
 
   describe('POST /api/tasks', () => {
     it('should create a new task', async () => {
-      const res = await agent
+      const res = await request(app)
         .post('/api/tasks')
         .set('Authorization', 'valid-token')
         .send({ text: 'New Task', category: 'Test', priority: 'High' });
@@ -71,12 +68,12 @@ describe('Server API', () => {
   describe('PUT /api/tasks/:id', () => {
     it('should update an existing task', async () => {
       // First, create a task
-      const createRes = await agent
+      const createRes = await request(app)
         .post('/api/tasks')
         .set('Authorization', 'valid-token')
         .send({ text: 'Task to Update', category: 'Test', priority: 'Low' });
 
-      const updateRes = await agent
+      const updateRes = await request(app)
         .put(`/api/tasks/${createRes.body.id}`)
         .set('Authorization', 'valid-token')
         .send({ text: 'Updated Task', completed: true, category: 'Updated', priority: 'High' });
@@ -92,12 +89,12 @@ describe('Server API', () => {
   describe('DELETE /api/tasks/:id', () => {
     it('should delete an existing task', async () => {
       // First, create a task
-      const createRes = await agent
+      const createRes = await request(app)
         .post('/api/tasks')
         .set('Authorization', 'valid-token')
         .send({ text: 'Task to Delete', category: 'Test', priority: 'Medium' });
 
-      const deleteRes = await agent
+      const deleteRes = await request(app)
         .delete(`/api/tasks/${createRes.body.id}`)
         .set('Authorization', 'valid-token');
 
